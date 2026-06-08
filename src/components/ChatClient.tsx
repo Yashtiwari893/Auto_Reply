@@ -2,8 +2,9 @@
 
 import { useState, useEffect, useRef, useCallback } from 'react'
 import { createClient } from '@/lib/supabase/client'
-import { Send, RefreshCw } from 'lucide-react'
+import { Send, RefreshCw, Info, X } from 'lucide-react'
 import Image from 'next/image'
+import EmojiPicker from '@/components/EmojiPicker'
 
 type Conversation = {
   senderId: string
@@ -74,6 +75,7 @@ export default function ChatClient({
   const [loadingMsgs, setLoadingMsgs] = useState(false)
   const [senderAutoReply, setSenderAutoReply] = useState(true)
   const [togglingReply, setTogglingReply] = useState(false)
+  const [showDetails, setShowDetails] = useState(false)
   const messagesEndRef = useRef<HTMLDivElement>(null)
   const scrollContainerRef = useRef<HTMLDivElement>(null)
   const shouldAutoScrollRef = useRef(false) // only scroll on first open or new outgoing
@@ -316,7 +318,7 @@ export default function ChatClient({
       </div>
 
       {/* Right — chat view */}
-      <div className="flex-1 flex flex-col min-w-0">
+      <div className="flex-1 flex flex-col min-w-0 relative">
         {selectedConv ? (
           <>
             <div className="px-5 py-3 border-b border-gray-100 flex items-center justify-between bg-white">
@@ -331,19 +333,29 @@ export default function ChatClient({
                 </div>
               </div>
 
-              {/* Per-sender auto-reply toggle */}
-              <div className="flex items-center gap-2.5">
-                <span className={`text-xs font-medium ${senderAutoReply ? 'text-green-600' : 'text-gray-400'}`}>
-                  Auto-Reply {senderAutoReply ? 'ON' : 'OFF'}
-                </span>
+              <div className="flex items-center gap-3">
+                {/* Per-sender auto-reply toggle */}
+                <div className="flex items-center gap-2">
+                  <span className={`text-xs font-medium ${senderAutoReply ? 'text-green-600' : 'text-gray-400'}`}>
+                    Auto-Reply {senderAutoReply ? 'ON' : 'OFF'}
+                  </span>
+                  <button
+                    onClick={toggleSenderAutoReply}
+                    disabled={togglingReply}
+                    className={`relative inline-flex h-5 w-9 items-center rounded-full transition-colors duration-200 disabled:opacity-60
+                      ${senderAutoReply ? 'bg-green-500' : 'bg-gray-300'}`}
+                  >
+                    <span className={`inline-block h-3.5 w-3.5 transform rounded-full bg-white shadow transition-transform duration-200
+                      ${senderAutoReply ? 'translate-x-4' : 'translate-x-0.5'}`} />
+                  </button>
+                </div>
+
+                {/* Info button */}
                 <button
-                  onClick={toggleSenderAutoReply}
-                  disabled={togglingReply}
-                  className={`relative inline-flex h-5 w-9 items-center rounded-full transition-colors duration-200 disabled:opacity-60
-                    ${senderAutoReply ? 'bg-green-500' : 'bg-gray-300'}`}
+                  onClick={() => setShowDetails(!showDetails)}
+                  className="p-1.5 hover:bg-gray-100 rounded-lg transition text-gray-400 hover:text-purple-600"
                 >
-                  <span className={`inline-block h-3.5 w-3.5 transform rounded-full bg-white shadow transition-transform duration-200
-                    ${senderAutoReply ? 'translate-x-4' : 'translate-x-0.5'}`} />
+                  <Info className="w-4 h-4" />
                 </button>
               </div>
             </div>
@@ -388,13 +400,14 @@ export default function ChatClient({
               <div ref={messagesEndRef} />
             </div>
 
-            <div className="px-4 py-3 border-t border-gray-100 bg-white flex gap-2 items-center">
+            <div className="px-4 py-3 border-t border-gray-100 bg-white flex gap-1 items-center">
+              <EmojiPicker onSelect={(emoji) => setReplyText(prev => prev + emoji)} />
               <input
                 type="text"
                 value={replyText}
                 onChange={(e) => setReplyText(e.target.value)}
                 onKeyDown={(e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendReply() } }}
-                placeholder="Type a manual reply..."
+                placeholder="Type a reply..."
                 className="flex-1 px-4 py-2.5 bg-gray-100 rounded-full text-sm focus:outline-none focus:ring-2 focus:ring-purple-300"
               />
               <button
@@ -407,6 +420,49 @@ export default function ChatClient({
                   : <Send className="w-4 h-4" />}
               </button>
             </div>
+
+            {/* Details sidebar */}
+            {showDetails && selectedConv && (
+              <div className="absolute right-0 top-0 h-full w-72 bg-white border-l border-gray-200 shadow-xl z-20 flex flex-col">
+                <div className="px-4 py-4 border-b border-gray-100 flex items-center justify-between">
+                  <h3 className="font-semibold text-gray-900">Details</h3>
+                  <button onClick={() => setShowDetails(false)} className="p-1 hover:bg-gray-100 rounded-lg">
+                    <X className="w-4 h-4 text-gray-500" />
+                  </button>
+                </div>
+                <div className="flex-1 overflow-y-auto p-5">
+                  <div className="flex flex-col items-center text-center mb-6">
+                    <Avatar name={selectedConv.name || selectedConv.senderId} profilePic={selectedConv.profilePic} size={20} />
+                    <p className="font-semibold text-gray-900 mt-3">{displayName(selectedConv)}</p>
+                    {selectedConv.username && selectedConv.name && selectedConv.name !== 'Unknown' && (
+                      <p className="text-sm text-gray-500 mt-0.5">{selectedConv.name}</p>
+                    )}
+                  </div>
+                  <div className="space-y-3 text-sm">
+                    {selectedConv.username && (
+                      <div className="flex justify-between py-2 border-b border-gray-50">
+                        <span className="text-gray-500">Username</span>
+                        <span className="font-medium text-gray-900">@{selectedConv.username}</span>
+                      </div>
+                    )}
+                    <div className="flex justify-between py-2 border-b border-gray-50">
+                      <span className="text-gray-500">Sender ID</span>
+                      <span className="font-mono text-xs text-gray-700">{selectedSender}</span>
+                    </div>
+                    <div className="flex justify-between py-2 border-b border-gray-50">
+                      <span className="text-gray-500">Auto-Reply</span>
+                      <span className={`font-medium ${senderAutoReply ? 'text-green-600' : 'text-red-500'}`}>
+                        {senderAutoReply ? 'Enabled' : 'Disabled'}
+                      </span>
+                    </div>
+                    <div className="flex justify-between py-2">
+                      <span className="text-gray-500">Messages</span>
+                      <span className="font-medium text-gray-900">{messages.length}</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
           </>
         ) : (
           <div className="flex-1 flex flex-col items-center justify-center text-gray-400 gap-3">
