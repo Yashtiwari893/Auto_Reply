@@ -5,6 +5,7 @@ import Image from 'next/image'
 import { usePathname, useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import { LayoutDashboard, Zap, MessageCircle, LogOut, MessagesSquare } from 'lucide-react'
+import InstagramIcon from '@/components/InstagramIcon'
 import { cn } from '@/lib/utils'
 
 const navItems = [
@@ -33,7 +34,12 @@ export default function Sidebar({ userEmail }: { userEmail: string }) {
         <div className="flex items-center gap-2">
           <Image src="/11za-logo.svg" alt="11za" width={52} height={21} priority />
           <div className="w-px h-6 bg-gray-200" />
-          <span className="font-bold text-sm tracking-tight" style={{ color: '#0D163F' }}>InstaReply</span>
+          <div className="flex items-center gap-1.5">
+            <div className="p-1 rounded-md" style={{ background: 'linear-gradient(135deg, #f09433, #e6683c, #dc2743, #cc2366, #bc1888)' }}>
+              <InstagramIcon className="w-3.5 h-3.5 text-white" />
+            </div>
+            <span className="font-bold text-sm tracking-tight" style={{ color: '#0D163F' }}>InstaReply</span>
+          </div>
         </div>
       </div>
 
