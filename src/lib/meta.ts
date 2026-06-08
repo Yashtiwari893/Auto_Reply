@@ -127,7 +127,7 @@ export async function getSenderInfo(
 }
 
 export function verifyWebhookSignature(
-  rawBody: string,
+  rawBody: Buffer | string,
   signature: string | null
 ): boolean {
   const secret = process.env.META_APP_SECRET
@@ -146,7 +146,7 @@ export function verifyWebhookSignature(
       'sha256=' +
       crypto
         .createHmac('sha256', secret)
-        .update(rawBody, 'utf8')
+        .update(rawBody)
         .digest('hex')
     // Log first 20 chars for debugging without exposing full secret
     console.log('[webhook] sig check — got:', signature.slice(0, 20), 'expected:', expected.slice(0, 20))

@@ -21,18 +21,19 @@ export async function GET(request: NextRequest) {
 
 // POST: incoming webhook events from Meta
 export async function POST(request: NextRequest) {
-  const rawBody = await request.text()
+  // Read as raw bytes to avoid string encoding issues with HMAC computation
+  const bodyBuffer = Buffer.from(await request.arrayBuffer())
   const signature = request.headers.get('x-hub-signature-256')
 
   // Verify signature to prevent spoofed requests
-  if (!verifyWebhookSignature(rawBody, signature)) {
+  if (!verifyWebhookSignature(bodyBuffer, signature)) {
     console.error('[webhook] Invalid signature')
     return new NextResponse('Unauthorized', { status: 401 })
   }
 
   let body: MetaWebhookEvent
   try {
-    body = JSON.parse(rawBody)
+    body = JSON.parse(bodyBuffer.toString('utf8'))
   } catch {
     return new NextResponse('Bad Request', { status: 400 })
   }
