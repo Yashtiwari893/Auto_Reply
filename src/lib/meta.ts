@@ -139,6 +139,61 @@ export async function getSenderInfo(
   }
 }
 
+export type IgPost = {
+  id: string
+  caption?: string
+  media_type: 'IMAGE' | 'VIDEO' | 'CAROUSEL_ALBUM'
+  media_url?: string
+  thumbnail_url?: string
+  timestamp: string
+  like_count?: number
+  comments_count?: number
+  permalink: string
+}
+
+export type IgComment = {
+  id: string
+  text: string
+  username: string
+  timestamp: string
+  replies?: {
+    data: { id: string; text: string; username: string; timestamp: string }[]
+  }
+}
+
+export async function getInstagramPosts(
+  igUserId: string,
+  accessToken: string,
+  limit = 20
+): Promise<IgPost[]> {
+  try {
+    const res = await fetch(
+      `${GRAPH_API_BASE}/${igUserId}/media?fields=id,caption,media_type,media_url,thumbnail_url,timestamp,like_count,comments_count,permalink&limit=${limit}&access_token=${accessToken}`
+    )
+    if (!res.ok) return []
+    const data = await res.json()
+    return data.data ?? []
+  } catch {
+    return []
+  }
+}
+
+export async function getPostComments(
+  mediaId: string,
+  accessToken: string
+): Promise<IgComment[]> {
+  try {
+    const res = await fetch(
+      `${GRAPH_API_BASE}/${mediaId}/comments?fields=id,text,username,timestamp,replies{id,text,username,timestamp}&limit=50&access_token=${accessToken}`
+    )
+    if (!res.ok) return []
+    const data = await res.json()
+    return data.data ?? []
+  } catch {
+    return []
+  }
+}
+
 export function verifyWebhookSignature(
   rawBody: Buffer | string,
   signature: string | null
