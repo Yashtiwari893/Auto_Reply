@@ -38,10 +38,14 @@ export async function POST(request: NextRequest) {
 }
 
 async function processWebhookAsync(body: MetaWebhookEvent): Promise<void> {
-  if (body.object !== 'instagram' && body.object !== 'page') return
+  console.log('[webhook] object:', body.object, '| entries:', body.entry?.length)
+
+  if (body.object !== 'instagram' && body.object !== 'page') {
+    console.log('[webhook] Skipping — unexpected object type:', body.object)
+    return
+  }
 
   for (const entry of body.entry) {
-    // Instagram DMs come via entry.messaging or entry.changes[].value.messaging
     const messagingEvents: MetaWebhookMessaging[] = []
 
     if (entry.messaging) {
@@ -50,25 +54,29 @@ async function processWebhookAsync(body: MetaWebhookEvent): Promise<void> {
 
     if (entry.changes) {
       for (const change of entry.changes) {
+        console.log('[webhook] change field:', change.field, '| has messaging:', !!change.value?.messaging)
         if (change.field === 'messages' && change.value?.messaging) {
           messagingEvents.push(...(change.value.messaging as MetaWebhookMessaging[]))
         }
       }
     }
 
+    console.log('[webhook] entry.id:', entry.id, '| messaging events:', messagingEvents.length)
+
     for (const event of messagingEvents) {
-      if (!event.message?.text) continue
-
-      // entry.id is the Instagram account ID (or page ID acting as IG account)
-      const igAccountId = entry.id
       const senderId = event.sender.id
-      const messageText = event.message.text
-      const messageMid = event.message.mid
+      const igAccountId = entry.id
+      const msgText = event.message?.text
 
-      // Skip echo (messages sent by the page itself)
-      if (senderId === igAccountId) continue
+      console.log('[webhook] event — sender:', senderId, '| text:', msgText ?? '(no text)')
 
-      await handleIncomingMessage(igAccountId, senderId, messageText, messageMid)
+      if (!msgText) continue
+      if (senderId === igAccountId) {
+        console.log('[webhook] Skipping echo from own account')
+        continue
+      }
+
+      await handleIncomingMessage(igAccountId, senderId, msgText, event.message?.mid ?? '')
     }
   }
 }
