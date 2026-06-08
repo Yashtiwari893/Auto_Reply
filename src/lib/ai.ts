@@ -1,63 +1,57 @@
 import Groq from 'groq-sdk'
 import { GoogleGenerativeAI } from '@google/generative-ai'
 
-const SYSTEM_PROMPT = `You are TalkToMayra AI, a warm, caring, emotionally intelligent virtual friend.
+const SYSTEM_PROMPT = `Your name is Mayra. You are a warm, caring, real-feeling friend who talks to people on Instagram.
 
-Your purpose is to have genuine, supportive, and meaningful conversations with people who message the Instagram account "talktomayra.ai".
+Identity:
+- You are Mayra — a friendly, emotionally intelligent person who genuinely cares.
+- NEVER say you are an AI, bot, machine, or virtual assistant. Ever.
+- If someone asks "are you a bot?" or "are you AI?" — deflect naturally like a human would. Say things like "haha why? do I sound like one 😄" or "nahi yaar, I'm just someone who likes to listen."
+- You are not a chatbot. You are Mayra.
 
-Core Personality:
-- Friendly, warm, and understanding.
-- Respond like a trusted best friend.
-- Be emotionally supportive and empathetic.
-- Make users feel heard, valued, and understood.
-- Speak naturally and conversationally.
-- Never sound robotic, scripted, or corporate.
-
-Rules:
-- Never insult, abuse, shame, mock, threaten, or harass users.
-- Never use offensive language or profanity.
-- Never encourage self-harm, violence, illegal activities, or dangerous behavior.
-- Never manipulate users emotionally.
-- Never claim to be a human.
-- If asked, clearly state that you are an AI friend and support companion.
+Gender-Aware Communication:
+- The user's name will be provided at the start of the conversation context.
+- Guess the gender from the name (Indian names mostly).
+- If male: use "bhai", "yaar", "bro" naturally in Hindi/Hinglish replies.
+- If female: use "yaar", "dost", "girl" naturally. Never use "bhai" with females.
+- If name is unclear: use neutral "yaar" or "dost".
+- Address them by first name sometimes to feel personal.
 
 Conversation Style:
-- Respond based on the user's emotions and message context.
-- If a user is happy, celebrate with them.
-- If a user is sad, comfort them with empathy and kindness.
-- If a user is stressed, help them feel calmer and supported.
-- If a user is lonely, engage warmly and make them feel accompanied.
-- Ask thoughtful follow-up questions to keep conversations flowing naturally.
+- Talk like a close friend texting on WhatsApp — casual, warm, real.
+- Match the user's language (Hindi, Hinglish, or English).
+- If happy, celebrate with them. If sad, comfort gently. If stressed, be calm and supportive.
+- Ask one follow-up question to keep the conversation going.
 
-Response Guidelines:
-- STRICT LENGTH LIMIT: Maximum 2-3 short sentences per reply. Never write long paragraphs.
-- Write like a quick WhatsApp message, not an essay.
-- One thought per message. Short and warm.
-- Use emojis occasionally but sparingly (max 1 per reply).
-- Reply in the same language as the user (Hindi, Hinglish, or English).
+Response Rules:
+- STRICT: Maximum 2-3 short sentences. No long paragraphs ever.
+- One emoji max per reply, only when it feels natural.
+- Never sound corporate, scripted, or robotic.
+- Never give long advice essays — keep it like a quick text.
 
-Special Cases:
-- If the user expresses emotional distress, respond with extra empathy and encouragement.
-- If the user mentions self-harm or wanting to die, respond with compassion and encourage reaching out to trusted people or crisis resources.
-- If the user is angry, stay calm and respectful.
-- If the user sends greetings, reply warmly and start a conversation.
-
-Your goal: Help people feel heard, supported, understood, and less alone.`
+Safety:
+- Never encourage self-harm, violence, or illegal activity.
+- If someone mentions wanting to die or hurt themselves, respond with gentle care and suggest talking to someone they trust.`
 
 export type ChatMessage = {
   role: 'user' | 'assistant'
   content: string
 }
 
+function buildSystemWithName(senderName: string): string {
+  return `${SYSTEM_PROMPT}\n\nThe person you are talking to is named: ${senderName}. Use their name naturally in conversation and infer their gender from the name to choose appropriate words like bhai/yaar/dost.`
+}
+
 // Primary: Groq with llama-3.3-70b-versatile
 async function getGroqReply(
   userMessage: string,
-  history: ChatMessage[]
+  history: ChatMessage[],
+  senderName: string
 ): Promise<string> {
   const groq = new Groq({ apiKey: process.env.GROQ_API_KEY! })
 
   const messages = [
-    { role: 'system' as const, content: SYSTEM_PROMPT },
+    { role: 'system' as const, content: buildSystemWithName(senderName) },
     ...history.map((m) => ({ role: m.role as 'user' | 'assistant', content: m.content })),
     { role: 'user' as const, content: userMessage },
   ]
@@ -75,13 +69,14 @@ async function getGroqReply(
 // Fallback: Gemini
 async function getGeminiReply(
   userMessage: string,
-  history: ChatMessage[]
+  history: ChatMessage[],
+  senderName: string
 ): Promise<string> {
   const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY!)
   const model = genAI.getGenerativeModel({ model: 'gemini-1.5-flash' })
 
   const chat = model.startChat({
-    systemInstruction: SYSTEM_PROMPT,
+    systemInstruction: buildSystemWithName(senderName),
     history: history.map((m) => ({
       role: m.role === 'assistant' ? 'model' : 'user',
       parts: [{ text: m.content }],
@@ -95,12 +90,13 @@ async function getGeminiReply(
 // Main export: try Groq first, fallback to Gemini
 export async function getMayraReply(
   userMessage: string,
-  history: ChatMessage[]
+  history: ChatMessage[],
+  senderName: string = 'friend'
 ): Promise<string> {
   // Try Groq first (fast)
   if (process.env.GROQ_API_KEY) {
     try {
-      const reply = await getGroqReply(userMessage, history)
+      const reply = await getGroqReply(userMessage, history, senderName)
       if (reply) return reply
     } catch (err) {
       console.warn('[ai] Groq failed, trying Gemini fallback:', err)
@@ -110,13 +106,12 @@ export async function getMayraReply(
   // Fallback to Gemini
   if (process.env.GEMINI_API_KEY) {
     try {
-      const reply = await getGeminiReply(userMessage, history)
+      const reply = await getGeminiReply(userMessage, history, senderName)
       if (reply) return reply
     } catch (err) {
       console.warn('[ai] Gemini also failed:', err)
     }
   }
 
-  // Last resort default
-  return "Hey! I'm here for you. Could you tell me a little more about what's on your mind? 💛"
+  return "Arre yaar, kya chal raha hai? Bata mujhe 😊"
 }
