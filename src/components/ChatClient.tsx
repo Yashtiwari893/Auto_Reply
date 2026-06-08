@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, useRef } from 'react'
+import { useState, useEffect, useRef, useCallback } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { Send, RefreshCw } from 'lucide-react'
 import Image from 'next/image'
@@ -24,16 +24,16 @@ type Message = {
 
 function Avatar({ name, profilePic, size = 10 }: { name: string; profilePic?: string; size?: number }) {
   const [imgError, setImgError] = useState(false)
-  const sizeClass = `w-${size} h-${size}`
+  const px = size * 4
 
   if (profilePic && !imgError) {
     return (
-      <div className={`${sizeClass} rounded-full overflow-hidden shrink-0`}>
+      <div className={`w-${size} h-${size} rounded-full overflow-hidden shrink-0`}>
         <Image
           src={profilePic}
           alt={name}
-          width={size * 4}
-          height={size * 4}
+          width={px}
+          height={px}
           className="w-full h-full object-cover"
           onError={() => setImgError(true)}
           unoptimized
@@ -42,11 +42,21 @@ function Avatar({ name, profilePic, size = 10 }: { name: string; profilePic?: st
     )
   }
 
+  const initials = name === 'Unknown' || name === 'Instagram User'
+    ? '?'
+    : name.charAt(0).toUpperCase()
+
   return (
-    <div className={`${sizeClass} rounded-full bg-gradient-to-br from-purple-400 to-pink-500 flex items-center justify-center text-white font-semibold text-sm shrink-0`}>
-      {name.charAt(0).toUpperCase()}
+    <div className={`w-${size} h-${size} rounded-full bg-gradient-to-br from-purple-400 to-pink-500 flex items-center justify-center text-white font-semibold text-sm shrink-0`}>
+      {initials}
     </div>
   )
+}
+
+function displayName(conv: Conversation) {
+  if (conv.username) return `@${conv.username}`
+  if (conv.name && conv.name !== 'Unknown' && conv.name !== 'Instagram User') return conv.name
+  return `User …${conv.senderId.slice(-6)}`
 }
 
 export default function ChatClient({
@@ -63,21 +73,24 @@ export default function ChatClient({
   const [sending, setSending] = useState(false)
   const [loadingMsgs, setLoadingMsgs] = useState(false)
   const messagesEndRef = useRef<HTMLDivElement>(null)
+  const scrollContainerRef = useRef<HTMLDivElement>(null)
+  const shouldAutoScrollRef = useRef(false) // only scroll on first open or new outgoing
   const supabase = createClient()
 
-  async function loadMessages(senderId: string) {
-    setLoadingMsgs(true)
+  // ── Load messages (no auto-scroll on periodic refresh) ──────────────────
+  const loadMessages = useCallback(async (senderId: string, scrollToBottom = false) => {
     const { data } = await supabase
       .from('conversation_history')
       .select('id, role, content, created_at')
       .eq('user_id', userId)
       .eq('sender_id', senderId)
       .order('created_at', { ascending: true })
+    if (scrollToBottom) shouldAutoScrollRef.current = true
     setMessages((data as Message[]) ?? [])
-    setLoadingMsgs(false)
-  }
+  }, [supabase, userId])
 
-  async function refreshConversations() {
+  // ── Refresh conversation list (preserve cached profile data) ─────────────
+  const refreshConversations = useCallback(async () => {
     const [{ data: history }, { data: incoming }] = await Promise.all([
       supabase
         .from('conversation_history')
@@ -95,7 +108,7 @@ export default function ChatClient({
     incoming?.forEach((m) => {
       if (!profileMap[m.sender_id]) {
         profileMap[m.sender_id] = {
-          name: m.sender_name || 'Instagram User',
+          name: m.sender_name || '',
           username: m.sender_username ?? undefined,
           profilePic: m.sender_profile_pic ?? undefined,
         }
@@ -103,14 +116,14 @@ export default function ChatClient({
     })
 
     const seen = new Set<string>()
-    const convs: Conversation[] = []
+    const freshConvs: Conversation[] = []
     history?.forEach((msg) => {
       if (!seen.has(msg.sender_id)) {
         seen.add(msg.sender_id)
         const p = profileMap[msg.sender_id]
-        convs.push({
+        freshConvs.push({
           senderId: msg.sender_id,
-          name: p?.name || 'Instagram User',
+          name: p?.name || '',
           username: p?.username,
           profilePic: p?.profilePic,
           lastMessage: msg.content,
@@ -119,12 +132,24 @@ export default function ChatClient({
         })
       }
     })
-    setConversations(convs)
-  }
 
+    // Merge: keep any profile data already fetched in memory (avoid flicker)
+    setConversations(prev => {
+      const cachedMap: Record<string, Conversation> = {}
+      prev.forEach(c => { cachedMap[c.senderId] = c })
+      return freshConvs.map(c => ({
+        ...c,
+        name: c.name || cachedMap[c.senderId]?.name || '',
+        username: c.username ?? cachedMap[c.senderId]?.username,
+        profilePic: c.profilePic ?? cachedMap[c.senderId]?.profilePic,
+      }))
+    })
+  }, [supabase, userId])
+
+  // ── Fetch real profile from Meta API on first open ───────────────────────
   async function fetchAndUpdateProfile(senderId: string) {
     const conv = conversations.find(c => c.senderId === senderId)
-    if (conv?.profilePic) return // already have it
+    if (conv?.profilePic) return
     try {
       const res = await fetch('/api/dashboard/refresh-profile', {
         method: 'POST',
@@ -135,7 +160,12 @@ export default function ChatClient({
       const data = await res.json()
       setConversations(prev => prev.map(c =>
         c.senderId === senderId
-          ? { ...c, name: data.name || c.name, username: data.username ?? c.username, profilePic: data.profilePic ?? c.profilePic }
+          ? {
+              ...c,
+              name: data.name && data.name !== 'Unknown' ? data.name : c.name,
+              username: data.username ?? c.username,
+              profilePic: data.profilePic ?? c.profilePic,
+            }
           : c
       ))
     } catch { /* silent */ }
@@ -143,23 +173,43 @@ export default function ChatClient({
 
   function selectSender(senderId: string) {
     setSelectedSender(senderId)
-    loadMessages(senderId)
+    setLoadingMsgs(true)
+    loadMessages(senderId, true) // scroll to bottom only on first open
+      .finally(() => setLoadingMsgs(false))
     fetchAndUpdateProfile(senderId)
   }
 
+  // ── Auto-scroll only when explicitly requested ───────────────────────────
   useEffect(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
+    if (shouldAutoScrollRef.current) {
+      messagesEndRef.current?.scrollIntoView({ behavior: 'instant' })
+      shouldAutoScrollRef.current = false
+    }
   }, [messages])
 
+  // ── Periodic refresh — only updates list and messages silently ────────────
   useEffect(() => {
     if (!selectedSender) return
-    const interval = setInterval(() => {
-      loadMessages(selectedSender)
-      refreshConversations()
+    const interval = setInterval(async () => {
+      await refreshConversations()
+      // Refresh messages silently (no scroll)
+      const { data } = await supabase
+        .from('conversation_history')
+        .select('id, role, content, created_at')
+        .eq('user_id', userId)
+        .eq('sender_id', selectedSender)
+        .order('created_at', { ascending: true })
+      setMessages(prev => {
+        const newMsgs = (data as Message[]) ?? []
+        // Only auto-scroll if a truly new message arrived
+        if (newMsgs.length > prev.length) shouldAutoScrollRef.current = true
+        return newMsgs
+      })
     }, 10000)
     return () => clearInterval(interval)
-  }, [selectedSender])
+  }, [selectedSender, refreshConversations, supabase, userId])
 
+  // ── Send manual reply ─────────────────────────────────────────────────────
   async function sendReply() {
     if (!replyText.trim() || !selectedSender || sending) return
     setSending(true)
@@ -170,7 +220,8 @@ export default function ChatClient({
     })
     if (res.ok) {
       setReplyText('')
-      await loadMessages(selectedSender)
+      shouldAutoScrollRef.current = true
+      await loadMessages(selectedSender, true)
       await refreshConversations()
     }
     setSending(false)
@@ -192,7 +243,6 @@ export default function ChatClient({
     return d.toLocaleDateString('en', { day: 'numeric', month: 'short' })
   }
 
-  // Group messages by date
   const groupedMessages: { date: string; msgs: Message[] }[] = []
   messages.forEach((msg) => {
     const label = formatDateLabel(msg.created_at)
@@ -214,9 +264,7 @@ export default function ChatClient({
 
         <div className="flex-1 overflow-y-auto">
           {conversations.length === 0 ? (
-            <div className="p-6 text-center text-sm text-gray-400 mt-8">
-              No conversations yet.<br />Messages will appear here.
-            </div>
+            <div className="p-6 text-center text-sm text-gray-400 mt-8">No conversations yet.</div>
           ) : (
             conversations.map((conv) => (
               <button
@@ -226,12 +274,10 @@ export default function ChatClient({
                   ${selectedSender === conv.senderId ? 'bg-purple-50 border-l-purple-500' : 'border-l-transparent'}`}
               >
                 <div className="flex items-center gap-3">
-                  <Avatar name={conv.name} profilePic={conv.profilePic} size={10} />
+                  <Avatar name={conv.name || conv.senderId} profilePic={conv.profilePic} size={10} />
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center justify-between mb-0.5">
-                      <p className="font-medium text-gray-900 text-sm truncate">
-                        {conv.username ? `@${conv.username}` : conv.name}
-                      </p>
+                      <p className="font-medium text-gray-900 text-sm truncate">{displayName(conv)}</p>
                       <p className="text-xs text-gray-400 shrink-0 ml-1">{formatTime(conv.lastTime)}</p>
                     </div>
                     <p className="text-xs text-gray-500 truncate">
@@ -249,22 +295,18 @@ export default function ChatClient({
       <div className="flex-1 flex flex-col min-w-0">
         {selectedConv ? (
           <>
-            {/* Header with profile info */}
             <div className="px-5 py-3 border-b border-gray-100 flex items-center gap-3 bg-white">
-              <Avatar name={selectedConv.name} profilePic={selectedConv.profilePic} size={10} />
+              <Avatar name={selectedConv.name || selectedConv.senderId} profilePic={selectedConv.profilePic} size={10} />
               <div>
-                <p className="font-semibold text-gray-900 text-sm">
-                  {selectedConv.username ? `@${selectedConv.username}` : selectedConv.name}
-                </p>
-                {selectedConv.username && (
-                  <p className="text-xs text-gray-400">{selectedConv.name}</p>
+                <p className="font-semibold text-gray-900 text-sm">{displayName(selectedConv)}</p>
+                {selectedConv.username && selectedConv.name && selectedConv.name !== 'Unknown' && (
+                  <p className="text-xs text-gray-500">{selectedConv.name}</p>
                 )}
                 <p className="text-xs text-gray-400">ID: {selectedSender}</p>
               </div>
             </div>
 
-            {/* Messages */}
-            <div className="flex-1 overflow-y-auto px-5 py-4 space-y-4 bg-gray-50">
+            <div ref={scrollContainerRef} className="flex-1 overflow-y-auto px-5 py-4 space-y-4 bg-gray-50">
               {loadingMsgs ? (
                 <div className="flex justify-center pt-12">
                   <div className="w-6 h-6 border-2 border-purple-500 border-t-transparent rounded-full animate-spin" />
@@ -283,7 +325,7 @@ export default function ChatClient({
                       {group.msgs.map((msg) => (
                         <div key={msg.id} className={`flex items-end gap-2 ${msg.role === 'assistant' ? 'justify-end' : 'justify-start'}`}>
                           {msg.role === 'user' && (
-                            <Avatar name={selectedConv.name} profilePic={selectedConv.profilePic} size={7} />
+                            <Avatar name={selectedConv.name || selectedConv.senderId} profilePic={selectedConv.profilePic} size={7} />
                           )}
                           <div className={`max-w-[65%] px-4 py-2.5 rounded-2xl text-sm
                             ${msg.role === 'assistant'
@@ -304,7 +346,6 @@ export default function ChatClient({
               <div ref={messagesEndRef} />
             </div>
 
-            {/* Reply box */}
             <div className="px-4 py-3 border-t border-gray-100 bg-white flex gap-2 items-center">
               <input
                 type="text"
