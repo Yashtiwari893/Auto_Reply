@@ -117,11 +117,23 @@ export async function getSenderInfo(
   pageAccessToken: string
 ): Promise<{ name: string; username?: string; profile_pic?: string }> {
   try {
+    // Try full fields first (works with Advanced Access or business accounts)
     const res = await fetch(
       `${GRAPH_API_BASE}/${senderId}?fields=name,username,profile_pic&access_token=${pageAccessToken}`
     )
-    if (!res.ok) return { name: 'Unknown' }
-    return res.json()
+    if (res.ok) {
+      const data = await res.json()
+      if (data.name && data.name !== 'Unknown') return data
+    }
+    // Fall back to name + profile_pic only (Standard Access)
+    const res2 = await fetch(
+      `${GRAPH_API_BASE}/${senderId}?fields=name,profile_pic&access_token=${pageAccessToken}`
+    )
+    if (res2.ok) {
+      const data = await res2.json()
+      if (data.name) return data
+    }
+    return { name: 'Unknown' }
   } catch {
     return { name: 'Unknown' }
   }

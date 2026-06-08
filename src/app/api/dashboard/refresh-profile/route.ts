@@ -24,12 +24,15 @@ export async function POST(request: NextRequest) {
 
   const accessToken = decrypt(account.access_token)
   const info = await getSenderInfo(senderId, accessToken)
+  const effectiveName = (info.name && info.name !== 'Unknown')
+    ? info.name
+    : `User ${senderId.slice(-6)}`
 
   // Update all incoming_messages rows for this sender with fresh profile data
   await admin
     .from('incoming_messages')
     .update({
-      sender_name: info.name !== 'Unknown' ? info.name : undefined,
+      sender_name: effectiveName,
       sender_username: info.username ?? null,
       sender_profile_pic: info.profile_pic ?? null,
     })
@@ -37,7 +40,7 @@ export async function POST(request: NextRequest) {
     .eq('sender_id', senderId)
 
   return NextResponse.json({
-    name: info.name,
+    name: effectiveName,
     username: info.username ?? null,
     profilePic: info.profile_pic ?? null,
   })

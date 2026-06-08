@@ -57,12 +57,16 @@ export async function handleIncomingMessage(
 
   // Get sender display name
   const senderInfo = await getSenderInfo(senderId, accessToken)
+  // Use sender ID suffix as fallback name when Meta API can't fetch profile
+  const effectiveName = (senderInfo.name && senderInfo.name !== 'Unknown')
+    ? senderInfo.name
+    : `User ${senderId.slice(-6)}`
 
   // Save incoming message to DB (with profile info)
   await supabase.from('incoming_messages').insert({
     user_id,
     sender_id: senderId,
-    sender_name: senderInfo.name,
+    sender_name: effectiveName,
     sender_username: senderInfo.username ?? null,
     sender_profile_pic: senderInfo.profile_pic ?? null,
     message_text: messageText,
@@ -96,7 +100,7 @@ export async function handleIncomingMessage(
   let status: 'sent' | 'failed' = 'failed'
 
   try {
-    replyText = await getMayraReply(messageText, history, senderInfo.name)
+    replyText = await getMayraReply(messageText, history, effectiveName)
   } catch (err) {
     console.error('[auto-reply] AI generation failed:', err)
     replyText = "Hey! I'm here for you. Could you tell me more about what's on your mind? 💛"

@@ -153,8 +153,6 @@ export default function ChatClient({
 
   // ── Fetch real profile from Meta API on first open ───────────────────────
   async function fetchAndUpdateProfile(senderId: string) {
-    const conv = conversations.find(c => c.senderId === senderId)
-    if (conv?.profilePic) return
     try {
       const res = await fetch('/api/dashboard/refresh-profile', {
         method: 'POST',
