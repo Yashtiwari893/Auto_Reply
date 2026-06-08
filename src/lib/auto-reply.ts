@@ -99,7 +99,7 @@ export async function handleIncomingMessage(
   let status: 'sent' | 'failed' = 'failed'
 
   try {
-    replyText = await getMayraReply(messageText, history, effectiveName)
+    replyText = await getMayraReply(messageText, history, effectiveName, user_id)
   } catch (err) {
     console.error('[auto-reply] AI generation failed:', err)
     replyText = "Hey! I'm here for you. Could you tell me more about what's on your mind? 💛"

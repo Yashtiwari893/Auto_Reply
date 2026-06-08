@@ -1,17 +1,25 @@
+import { createAdminClient } from '@/lib/supabase/admin'
 import { createClient } from '@/lib/supabase/server'
-import AutoRepliesClient from '@/components/AutoRepliesClient'
+import MayraSettingsClient from '@/components/MayraSettingsClient'
 
-export default async function AutoRepliesPage() {
+export default async function MayraSettingsPage() {
   const supabase = await createClient()
-  const {
-    data: { user },
-  } = await supabase.auth.getUser()
+  const { data: { user } } = await supabase.auth.getUser()
 
-  const { data: rules } = await supabase
-    .from('auto_replies')
+  const admin = createAdminClient()
+  const { data: settings } = await admin
+    .from('mayra_settings')
     .select('*')
     .eq('user_id', user!.id)
-    .order('created_at', { ascending: false })
+    .single()
 
-  return <AutoRepliesClient initialRules={rules ?? []} />
+  const initial = settings ?? {
+    bot_name: 'Mayra',
+    language: 'auto',
+    tone: 'casual',
+    reply_length: 'short',
+    custom_instructions: '',
+  }
+
+  return <MayraSettingsClient initial={initial} />
 }
