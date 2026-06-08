@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useRef, useCallback } from 'react'
 import { createClient } from '@/lib/supabase/client'
-import { Send, RefreshCw, Info, X } from 'lucide-react'
+import { Send, RefreshCw, Info, X, Search } from 'lucide-react'
 import Image from 'next/image'
 import EmojiPicker from '@/components/EmojiPicker'
 
@@ -68,6 +68,7 @@ export default function ChatClient({
   userId: string
 }) {
   const [conversations, setConversations] = useState(initialConversations)
+  const [searchQuery, setSearchQuery] = useState('')
   const [selectedSender, setSelectedSender] = useState<string | null>(null)
   const [messages, setMessages] = useState<Message[]>([])
   const [replyText, setReplyText] = useState('')
@@ -255,6 +256,18 @@ export default function ChatClient({
 
   const selectedConv = conversations.find((c) => c.senderId === selectedSender)
 
+  const filteredConversations = searchQuery.trim()
+    ? conversations.filter((c) => {
+        const q = searchQuery.toLowerCase()
+        return (
+          (c.name && c.name.toLowerCase().includes(q)) ||
+          (c.username && c.username.toLowerCase().includes(q)) ||
+          c.senderId.toLowerCase().includes(q) ||
+          c.lastMessage.toLowerCase().includes(q)
+        )
+      })
+    : conversations
+
   function formatTime(iso: string) {
     return new Date(iso).toLocaleTimeString('en', { hour: '2-digit', minute: '2-digit' })
   }
@@ -281,18 +294,40 @@ export default function ChatClient({
     <div className="flex h-screen bg-white">
       {/* Left — conversation list */}
       <div className="w-72 border-r border-gray-200 flex flex-col shrink-0">
-        <div className="px-4 py-4 border-b border-gray-100 flex items-center justify-between">
-          <h2 className="font-semibold text-gray-900 text-base">Chats</h2>
-          <button onClick={refreshConversations} className="p-1.5 hover:bg-gray-100 rounded-lg transition" title="Refresh">
-            <RefreshCw className="w-4 h-4 text-gray-500" />
-          </button>
+        <div className="px-4 py-3 border-b border-gray-100">
+          <div className="flex items-center justify-between mb-3">
+            <h2 className="font-semibold text-gray-900 text-base">Chats</h2>
+            <button onClick={refreshConversations} className="p-1.5 hover:bg-gray-100 rounded-lg transition" title="Refresh">
+              <RefreshCw className="w-4 h-4 text-gray-500" />
+            </button>
+          </div>
+          <div className="relative">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-gray-400 pointer-events-none" />
+            <input
+              type="text"
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              placeholder="Search conversations..."
+              className="w-full pl-8 pr-3 py-2 bg-gray-100 rounded-full text-xs focus:outline-none focus:ring-2 focus:ring-purple-300 placeholder:text-gray-400"
+            />
+            {searchQuery && (
+              <button
+                onClick={() => setSearchQuery('')}
+                className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
+              >
+                <X className="w-3.5 h-3.5" />
+              </button>
+            )}
+          </div>
         </div>
 
         <div className="flex-1 overflow-y-auto">
-          {conversations.length === 0 ? (
-            <div className="p-6 text-center text-sm text-gray-400 mt-8">No conversations yet.</div>
+          {filteredConversations.length === 0 ? (
+            <div className="p-6 text-center text-sm text-gray-400 mt-8">
+              {searchQuery ? 'No results found.' : 'No conversations yet.'}
+            </div>
           ) : (
-            conversations.map((conv) => (
+            filteredConversations.map((conv) => (
               <button
                 key={conv.senderId}
                 onClick={() => selectSender(conv.senderId)}
