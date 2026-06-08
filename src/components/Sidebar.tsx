@@ -30,8 +30,11 @@ export default function Sidebar({ userEmail }: { userEmail: string }) {
     <aside className="fixed inset-y-0 left-0 w-64 bg-white border-r border-gray-200 flex flex-col z-10">
       {/* Logo */}
       <div className="px-6 py-5 border-b border-gray-100">
-        <Image src="/11za-logo.svg" alt="11za" width={80} height={32} priority />
-        <p className="text-xs text-gray-400 mt-1">InstaReply</p>
+        <div className="flex items-center gap-2">
+          <Image src="/11za-logo.svg" alt="11za" width={52} height={21} priority />
+          <div className="w-px h-6 bg-gray-200" />
+          <span className="font-bold text-sm tracking-tight" style={{ color: '#0D163F' }}>InstaReply</span>
+        </div>
       </div>
 
       {/* Nav */}
