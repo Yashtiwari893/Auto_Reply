@@ -1,4 +1,4 @@
-import { NextRequest, NextResponse } from 'next/server'
+import { NextRequest, NextResponse, after } from 'next/server'
 import { handleIncomingMessage } from '@/lib/auto-reply'
 import type { MetaWebhookEvent, MetaWebhookMessaging } from '@/types'
 
@@ -29,10 +29,14 @@ export async function POST(request: NextRequest) {
     return new NextResponse('Bad Request', { status: 400 })
   }
 
-  // Must respond 200 quickly; process async
-  processWebhookAsync(body).catch((err) =>
-    console.error('[webhook] Processing error:', err)
-  )
+  // after() keeps the function alive until processing completes, even after response is sent
+  after(async () => {
+    try {
+      await processWebhookAsync(body)
+    } catch (err) {
+      console.error('[webhook] Processing error:', err)
+    }
+  })
 
   return new NextResponse('EVENT_RECEIVED', { status: 200 })
 }
