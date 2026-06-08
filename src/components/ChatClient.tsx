@@ -122,9 +122,29 @@ export default function ChatClient({
     setConversations(convs)
   }
 
+  async function fetchAndUpdateProfile(senderId: string) {
+    const conv = conversations.find(c => c.senderId === senderId)
+    if (conv?.profilePic) return // already have it
+    try {
+      const res = await fetch('/api/dashboard/refresh-profile', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ senderId }),
+      })
+      if (!res.ok) return
+      const data = await res.json()
+      setConversations(prev => prev.map(c =>
+        c.senderId === senderId
+          ? { ...c, name: data.name || c.name, username: data.username ?? c.username, profilePic: data.profilePic ?? c.profilePic }
+          : c
+      ))
+    } catch { /* silent */ }
+  }
+
   function selectSender(senderId: string) {
     setSelectedSender(senderId)
     loadMessages(senderId)
+    fetchAndUpdateProfile(senderId)
   }
 
   useEffect(() => {
