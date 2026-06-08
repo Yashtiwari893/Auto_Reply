@@ -1,10 +1,9 @@
 import { createAdminClient } from '@/lib/supabase/admin'
 import { decrypt } from '@/lib/crypto'
 import { sendInstagramMessage, getSenderInfo } from '@/lib/meta'
-import type { AutoReply } from '@/types'
+import { getMayraReply, type ChatMessage } from '@/lib/ai'
 
-// Prevent duplicate replies: track recently processed message IDs in memory
-// In production with multiple instances, use a Redis/Supabase distributed lock
+// Deduplication: prevent double-processing same message
 const processedMessageIds = new Set<string>()
 
 export async function handleIncomingMessage(
@@ -13,10 +12,8 @@ export async function handleIncomingMessage(
   messageText: string,
   messageMid: string
 ): Promise<void> {
-  // Deduplication guard
   if (processedMessageIds.has(messageMid)) return
   processedMessageIds.add(messageMid)
-  // Evict old entries to prevent unbounded growth
   if (processedMessageIds.size > 10_000) {
     const first = processedMessageIds.values().next().value
     if (first) processedMessageIds.delete(first)
@@ -24,7 +21,7 @@ export async function handleIncomingMessage(
 
   const supabase = createAdminClient()
 
-  // Look up which user owns this Instagram account
+  // Find which user owns this Instagram account
   const { data: account } = await supabase
     .from('instagram_accounts')
     .select('user_id, access_token, page_id')
@@ -33,13 +30,13 @@ export async function handleIncomingMessage(
 
   if (!account) return
 
-  const { user_id, access_token: encryptedToken, page_id } = account
+  const { user_id, access_token: encryptedToken } = account
   const accessToken = decrypt(encryptedToken)
 
-  // Fetch sender display name
+  // Get sender display name
   const senderInfo = await getSenderInfo(senderId, accessToken)
 
-  // Save incoming message
+  // Save incoming message to DB
   await supabase.from('incoming_messages').insert({
     user_id,
     sender_id: senderId,
@@ -47,50 +44,61 @@ export async function handleIncomingMessage(
     message_text: messageText,
   })
 
-  // Find matching auto-reply rule
-  const { data: rules } = await supabase
-    .from('auto_replies')
-    .select('*')
+  // Save this message to conversation history
+  await supabase.from('conversation_history').insert({
+    user_id,
+    sender_id: senderId,
+    role: 'user',
+    content: messageText,
+  })
+
+  // Fetch last 20 messages for context (ordered oldest → newest)
+  const { data: historyRows } = await supabase
+    .from('conversation_history')
+    .select('role, content')
     .eq('user_id', user_id)
-    .eq('is_active', true)
-    .order('trigger_type', { ascending: false }) // 'keyword' before 'default'
+    .eq('sender_id', senderId)
+    .order('created_at', { ascending: false })
+    .limit(20)
 
-  if (!rules || rules.length === 0) return
+  // Reverse so oldest is first (correct order for AI context)
+  const history: ChatMessage[] = (historyRows ?? [])
+    .reverse()
+    .slice(0, -1) // exclude the message we just inserted (it's the current one)
+    .map((r) => ({ role: r.role as 'user' | 'assistant', content: r.content }))
 
-  const lowerText = messageText.toLowerCase()
-  let matchedReply: AutoReply | null = null
-
-  // Check keyword matches first
-  for (const rule of rules as AutoReply[]) {
-    if (rule.trigger_type === 'keyword' && rule.keyword) {
-      if (lowerText.includes(rule.keyword.toLowerCase())) {
-        matchedReply = rule
-        break
-      }
-    }
-  }
-
-  // Fall back to default reply
-  if (!matchedReply) {
-    matchedReply = (rules as AutoReply[]).find((r) => r.trigger_type === 'default') ?? null
-  }
-
-  if (!matchedReply) return
-
-  // Send the reply
+  // Generate AI reply
+  let replyText = ''
   let status: 'sent' | 'failed' = 'failed'
+
   try {
-    await sendInstagramMessage(senderId, matchedReply.reply_message, accessToken, igAccountId)
+    replyText = await getMayraReply(messageText, history)
+  } catch (err) {
+    console.error('[auto-reply] AI generation failed:', err)
+    replyText = "Hey! I'm here for you. Could you tell me more about what's on your mind? 💛"
+  }
+
+  // Send the reply via Instagram API
+  try {
+    await sendInstagramMessage(senderId, replyText, accessToken, igAccountId)
     status = 'sent'
   } catch (err) {
     console.error('[auto-reply] send failed:', err)
   }
 
+  // Save assistant reply to conversation history
+  await supabase.from('conversation_history').insert({
+    user_id,
+    sender_id: senderId,
+    role: 'assistant',
+    content: replyText,
+  })
+
   // Log sent message
   await supabase.from('sent_messages').insert({
     user_id,
     recipient_id: senderId,
-    message_text: matchedReply.reply_message,
+    message_text: replyText,
     status,
   })
 }
