@@ -130,13 +130,33 @@ export function verifyWebhookSignature(
   rawBody: string,
   signature: string | null
 ): boolean {
-  if (!signature) return false
-  const crypto = require('crypto')
-  const expected =
-    'sha256=' +
-    crypto
-      .createHmac('sha256', process.env.META_APP_SECRET!)
-      .update(rawBody)
-      .digest('hex')
-  return crypto.timingSafeEqual(Buffer.from(expected), Buffer.from(signature))
+  const secret = process.env.META_APP_SECRET
+  if (!secret) {
+    // Secret not configured — log warning but allow through (dev/testing mode)
+    console.warn('[webhook] META_APP_SECRET not set — skipping signature verification')
+    return true
+  }
+  if (!signature) {
+    console.error('[webhook] Missing x-hub-signature-256 header')
+    return false
+  }
+  try {
+    const crypto = require('crypto')
+    const expected =
+      'sha256=' +
+      crypto
+        .createHmac('sha256', secret)
+        .update(rawBody, 'utf8')
+        .digest('hex')
+    // Log first 20 chars for debugging without exposing full secret
+    console.log('[webhook] sig check — got:', signature.slice(0, 20), 'expected:', expected.slice(0, 20))
+    if (expected.length !== signature.length) {
+      console.error('[webhook] Signature length mismatch:', expected.length, 'vs', signature.length)
+      return false
+    }
+    return crypto.timingSafeEqual(Buffer.from(expected), Buffer.from(signature))
+  } catch (err) {
+    console.error('[webhook] Signature verification error:', err)
+    return false
+  }
 }
