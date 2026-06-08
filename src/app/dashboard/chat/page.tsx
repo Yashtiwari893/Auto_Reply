@@ -20,7 +20,7 @@ export default async function ChatPage() {
       .from('incoming_messages')
       .select('sender_id, sender_name, sender_username, sender_profile_pic')
       .eq('user_id', user!.id)
-      .order('created_at', { ascending: false }),
+      .order('received_at', { ascending: false }),
     admin
       .from('instagram_accounts')
       .select('access_token')

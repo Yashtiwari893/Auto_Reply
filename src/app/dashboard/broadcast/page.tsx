@@ -13,7 +13,7 @@ export default async function BroadcastPage() {
     .from('incoming_messages')
     .select('sender_id, sender_name, sender_username, sender_profile_pic')
     .eq('user_id', user!.id)
-    .order('created_at', { ascending: false })
+    .order('received_at', { ascending: false })
 
   // Deduplicate — keep most recent profile per sender
   const seen = new Set<string>()
