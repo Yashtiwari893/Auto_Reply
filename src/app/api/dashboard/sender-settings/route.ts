@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
+import { createAdminClient } from '@/lib/supabase/admin'
 
 // GET: fetch auto_reply_enabled for a sender
 export async function GET(request: NextRequest) {
@@ -10,7 +11,8 @@ export async function GET(request: NextRequest) {
   const senderId = request.nextUrl.searchParams.get('senderId')
   if (!senderId) return NextResponse.json({ error: 'Missing senderId' }, { status: 400 })
 
-  const { data } = await supabase
+  const admin = createAdminClient()
+  const { data } = await admin
     .from('sender_settings')
     .select('auto_reply_enabled')
     .eq('user_id', user.id)
@@ -32,9 +34,18 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: 'Missing fields' }, { status: 400 })
   }
 
-  await supabase
+  const admin = createAdminClient()
+  const { error } = await admin
     .from('sender_settings')
-    .upsert({ user_id: user.id, sender_id: senderId, auto_reply_enabled: enabled })
+    .upsert(
+      { user_id: user.id, sender_id: senderId, auto_reply_enabled: enabled },
+      { onConflict: 'user_id,sender_id' }
+    )
+
+  if (error) {
+    console.error('[sender-settings] upsert failed:', error)
+    return NextResponse.json({ error: 'Failed to save setting' }, { status: 500 })
+  }
 
   return NextResponse.json({ success: true, enabled })
 }

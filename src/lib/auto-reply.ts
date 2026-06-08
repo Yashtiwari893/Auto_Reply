@@ -48,6 +48,7 @@ export async function handleIncomingMessage(
     .eq('sender_id', senderId)
     .single()
 
+  console.log('[auto-reply] sender_settings row:', senderSetting)
   if (senderSetting?.auto_reply_enabled === false) {
     console.log('[auto-reply] Per-sender auto-reply disabled for:', senderId)
     return
