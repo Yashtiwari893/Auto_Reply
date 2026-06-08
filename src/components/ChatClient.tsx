@@ -151,8 +151,8 @@ export default function ChatClient({
     })
   }, [supabase, userId])
 
-  // ── Fetch real profile from Meta API on first open ───────────────────────
-  async function fetchAndUpdateProfile(senderId: string) {
+  // ── Fetch real profile from Meta API ────────────────────────────────────
+  const fetchAndUpdateProfile = useCallback(async (senderId: string) => {
     try {
       const res = await fetch('/api/dashboard/refresh-profile', {
         method: 'POST',
@@ -172,7 +172,16 @@ export default function ChatClient({
           : c
       ))
     } catch { /* silent */ }
-  }
+  }, [])
+
+  // ── On mount: refresh all conversations missing profile data ─────────────
+  useEffect(() => {
+    const missing = initialConversations.filter(c => !c.profilePic || !c.username)
+    if (missing.length === 0) return
+    // Parallel refresh, max 8 at once to avoid rate limits
+    const batch = missing.slice(0, 8)
+    batch.forEach(c => fetchAndUpdateProfile(c.senderId))
+  }, []) // eslint-disable-line react-hooks/exhaustive-deps
 
   async function loadSenderAutoReply(senderId: string) {
     const res = await fetch(`/api/dashboard/sender-settings?senderId=${senderId}`)
