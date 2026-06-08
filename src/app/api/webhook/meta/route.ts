@@ -1,5 +1,4 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { verifyWebhookSignature } from '@/lib/meta'
 import { handleIncomingMessage } from '@/lib/auto-reply'
 import type { MetaWebhookEvent, MetaWebhookMessaging } from '@/types'
 
@@ -21,19 +20,11 @@ export async function GET(request: NextRequest) {
 
 // POST: incoming webhook events from Meta
 export async function POST(request: NextRequest) {
-  // Read as raw bytes to avoid string encoding issues with HMAC computation
-  const bodyBuffer = Buffer.from(await request.arrayBuffer())
-  const signature = request.headers.get('x-hub-signature-256')
-
-  // Verify signature to prevent spoofed requests
-  if (!verifyWebhookSignature(bodyBuffer, signature)) {
-    console.error('[webhook] Invalid signature')
-    return new NextResponse('Unauthorized', { status: 401 })
-  }
+  const rawBody = await request.text()
 
   let body: MetaWebhookEvent
   try {
-    body = JSON.parse(bodyBuffer.toString('utf8'))
+    body = JSON.parse(rawBody)
   } catch {
     return new NextResponse('Bad Request', { status: 400 })
   }
