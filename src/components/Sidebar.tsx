@@ -31,6 +31,7 @@ export default function Sidebar({ userEmail }: { userEmail: string }) {
       {/* Logo */}
       <div className="px-6 py-5 border-b border-gray-100">
         <Image src="/11za-logo.svg" alt="11za" width={80} height={32} priority />
+        <p className="text-xs text-gray-400 mt-1">InstaReply</p>
       </div>
 
       {/* Nav */}
