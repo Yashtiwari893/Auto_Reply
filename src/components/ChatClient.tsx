@@ -48,7 +48,7 @@ function Avatar({ name, profilePic, size = 10 }: { name: string; profilePic?: st
     : name.charAt(0).toUpperCase()
 
   return (
-    <div className={`w-${size} h-${size} rounded-full bg-gradient-to-br from-purple-400 to-pink-500 flex items-center justify-center text-white font-semibold text-sm shrink-0`}>
+    <div className={`w-${size} h-${size} rounded-full flex items-center justify-center text-white font-semibold text-sm shrink-0`} style={{ backgroundColor: '#09AF72' }}>
       {initials}
     </div>
   )
@@ -307,7 +307,7 @@ export default function ChatClient({
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               placeholder="Search conversations..."
-              className="w-full pl-8 pr-3 py-2 bg-gray-100 rounded-full text-xs focus:outline-none focus:ring-2 focus:ring-purple-300 placeholder:text-gray-400"
+              className="w-full pl-8 pr-3 py-2 bg-gray-100 rounded-full text-xs focus:outline-none focus:ring-2 placeholder:text-gray-400" style={{ '--tw-ring-color': '#09AF72' } as React.CSSProperties}
             />
             {searchQuery && (
               <button
@@ -331,7 +331,8 @@ export default function ChatClient({
                 key={conv.senderId}
                 onClick={() => selectSender(conv.senderId)}
                 className={`w-full text-left px-4 py-3 border-b border-gray-50 hover:bg-gray-50 transition border-l-4
-                  ${selectedSender === conv.senderId ? 'bg-purple-50 border-l-purple-500' : 'border-l-transparent'}`}
+                  ${selectedSender === conv.senderId ? 'border-l-transparent' : 'border-l-transparent'}`}
+                style={selectedSender === conv.senderId ? { backgroundColor: '#e6f7f1', borderLeftColor: '#09AF72', borderLeftWidth: '4px' } : {}}
               >
                 <div className="flex items-center gap-3">
                   <Avatar name={conv.name || conv.senderId} profilePic={conv.profilePic} size={10} />
@@ -387,7 +388,7 @@ export default function ChatClient({
                 {/* Info button */}
                 <button
                   onClick={() => setShowDetails(!showDetails)}
-                  className="p-1.5 hover:bg-gray-100 rounded-lg transition text-gray-400 hover:text-purple-600"
+                  className="p-1.5 hover:bg-gray-100 rounded-lg transition text-gray-400 hover:text-green-600"
                 >
                   <Info className="w-4 h-4" />
                 </button>
@@ -397,7 +398,7 @@ export default function ChatClient({
             <div ref={scrollContainerRef} className="flex-1 overflow-y-auto px-5 py-4 space-y-4 bg-gray-50">
               {loadingMsgs ? (
                 <div className="flex justify-center pt-12">
-                  <div className="w-6 h-6 border-2 border-purple-500 border-t-transparent rounded-full animate-spin" />
+                  <div className="w-6 h-6 border-2 border-t-transparent rounded-full animate-spin" style={{ borderColor: '#09AF72', borderTopColor: 'transparent' }} />
                 </div>
               ) : groupedMessages.length === 0 ? (
                 <div className="text-center text-sm text-gray-400 pt-12">No messages</div>
@@ -415,13 +416,15 @@ export default function ChatClient({
                           {msg.role === 'user' && (
                             <Avatar name={selectedConv.name || selectedConv.senderId} profilePic={selectedConv.profilePic} size={7} />
                           )}
-                          <div className={`max-w-[65%] px-4 py-2.5 rounded-2xl text-sm
-                            ${msg.role === 'assistant'
-                              ? 'bg-purple-600 text-white rounded-br-sm'
-                              : 'bg-white text-gray-900 rounded-bl-sm shadow-sm border border-gray-100'}`}
+                          <div
+                            className={`max-w-[65%] px-4 py-2.5 rounded-2xl text-sm
+                              ${msg.role === 'assistant'
+                                ? 'text-white rounded-br-sm'
+                                : 'bg-white text-gray-900 rounded-bl-sm shadow-sm border border-gray-100'}`}
+                            style={msg.role === 'assistant' ? { backgroundColor: '#09AF72' } : {}}
                           >
                             <p className="leading-relaxed">{msg.content}</p>
-                            <p className={`text-xs mt-1 text-right ${msg.role === 'assistant' ? 'text-purple-300' : 'text-gray-400'}`}>
+                            <p className={`text-xs mt-1 text-right ${msg.role === 'assistant' ? 'text-green-100' : 'text-gray-400'}`}>
                               {formatTime(msg.created_at)}
                             </p>
                           </div>
@@ -442,12 +445,13 @@ export default function ChatClient({
                 onChange={(e) => setReplyText(e.target.value)}
                 onKeyDown={(e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendReply() } }}
                 placeholder="Type a reply..."
-                className="flex-1 px-4 py-2.5 bg-gray-100 rounded-full text-sm focus:outline-none focus:ring-2 focus:ring-purple-300"
+                className="flex-1 px-4 py-2.5 bg-gray-100 rounded-full text-sm focus:outline-none focus:ring-2"
               />
               <button
                 onClick={sendReply}
                 disabled={sending || !replyText.trim()}
-                className="w-10 h-10 bg-purple-600 text-white rounded-full flex items-center justify-center hover:bg-purple-700 transition disabled:opacity-40 shrink-0"
+                className="w-10 h-10 text-white rounded-full flex items-center justify-center hover:opacity-90 transition disabled:opacity-40 shrink-0"
+                style={{ backgroundColor: '#09AF72' }}
               >
                 {sending
                   ? <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />

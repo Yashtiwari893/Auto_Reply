@@ -12,8 +12,11 @@ export default function MiniBarChart({ data }: { data: Bar[] }) {
           <span className="text-xs text-gray-500">{count > 0 ? count : ''}</span>
           <div className="w-full flex items-end" style={{ height: '64px' }}>
             <div
-              className="w-full bg-purple-500 rounded-t transition-all duration-300 min-h-[2px]"
-              style={{ height: `${Math.max((count / max) * 64, count > 0 ? 4 : 2)}px` }}
+              className="w-full rounded-t transition-all duration-300 min-h-[2px]"
+              style={{
+                height: `${Math.max((count / max) * 64, count > 0 ? 4 : 2)}px`,
+                backgroundColor: '#09AF72',
+              }}
             />
           </div>
           <span className="text-xs text-gray-400">{day}</span>

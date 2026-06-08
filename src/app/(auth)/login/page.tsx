@@ -3,9 +3,9 @@
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
+import Image from 'next/image'
 import { createClient } from '@/lib/supabase/client'
 import { Loader2 } from 'lucide-react'
-import InstagramIcon from '@/components/InstagramIcon'
 
 export default function LoginPage() {
   const router = useRouter()
@@ -30,13 +30,11 @@ export default function LoginPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-purple-50 to-pink-50 flex items-center justify-center p-4">
+    <div className="min-h-screen flex items-center justify-center p-4" style={{ background: 'linear-gradient(135deg, #e6f7f1 0%, #ffffff 50%, #e6f7f1 100%)' }}>
       <div className="bg-white rounded-2xl shadow-xl w-full max-w-md p-8">
         <div className="flex flex-col items-center mb-8">
-          <div className="bg-gradient-to-tr from-purple-500 to-pink-500 p-3 rounded-2xl mb-4">
-            <InstagramIcon className="w-8 h-8 text-white" />
-          </div>
-          <h1 className="text-2xl font-bold text-gray-900">Welcome back</h1>
+          <Image src="/11za-logo.svg" alt="11za" width={100} height={40} className="mb-4" priority />
+          <h1 className="text-2xl font-bold" style={{ color: '#0D163F' }}>Welcome back</h1>
           <p className="text-gray-500 mt-1 text-sm">Sign in to your account</p>
         </div>
 
@@ -48,7 +46,8 @@ export default function LoginPage() {
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               required
-              className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-purple-500"
+              className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2"
+              style={{ '--tw-ring-color': '#09AF72' } as React.CSSProperties}
               placeholder="you@example.com"
             />
           </div>
@@ -59,7 +58,7 @@ export default function LoginPage() {
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               required
-              className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-purple-500"
+              className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2"
               placeholder="••••••••"
             />
           </div>
@@ -73,7 +72,8 @@ export default function LoginPage() {
           <button
             type="submit"
             disabled={loading}
-            className="w-full bg-gradient-to-r from-purple-600 to-pink-600 text-white py-2 rounded-lg font-medium text-sm hover:opacity-90 transition disabled:opacity-60 flex items-center justify-center gap-2"
+            className="w-full text-white py-2 rounded-lg font-medium text-sm hover:opacity-90 transition disabled:opacity-60 flex items-center justify-center gap-2"
+            style={{ backgroundColor: '#09AF72' }}
           >
             {loading && <Loader2 className="w-4 h-4 animate-spin" />}
             Sign In
@@ -82,7 +82,7 @@ export default function LoginPage() {
 
         <p className="text-center text-sm text-gray-500 mt-6">
           Don&apos;t have an account?{' '}
-          <Link href="/signup" className="text-purple-600 font-medium hover:underline">
+          <Link href="/signup" className="font-medium hover:underline" style={{ color: '#09AF72' }}>
             Sign up
           </Link>
         </p>

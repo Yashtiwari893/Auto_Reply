@@ -1,15 +1,15 @@
 'use client'
 
 import Link from 'next/link'
+import Image from 'next/image'
 import { usePathname, useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import { LayoutDashboard, Zap, MessageCircle, LogOut, MessagesSquare } from 'lucide-react'
-import InstagramIcon from '@/components/InstagramIcon'
 import { cn } from '@/lib/utils'
 
 const navItems = [
   { href: '/dashboard', label: 'Overview', icon: LayoutDashboard, exact: true },
-  { href: '/dashboard/connect', label: 'Instagram', icon: InstagramIcon },
+  { href: '/dashboard/connect', label: 'Instagram', icon: MessageCircle },
   { href: '/dashboard/chat', label: 'Chats', icon: MessagesSquare },
   { href: '/dashboard/auto-replies', label: 'Auto Replies', icon: Zap },
   { href: '/dashboard/logs', label: 'Message Logs', icon: MessageCircle },
@@ -30,12 +30,7 @@ export default function Sidebar({ userEmail }: { userEmail: string }) {
     <aside className="fixed inset-y-0 left-0 w-64 bg-white border-r border-gray-200 flex flex-col z-10">
       {/* Logo */}
       <div className="px-6 py-5 border-b border-gray-100">
-        <div className="flex items-center gap-2">
-          <div className="bg-gradient-to-tr from-purple-500 to-pink-500 p-1.5 rounded-lg">
-            <InstagramIcon className="w-5 h-5 text-white" />
-          </div>
-          <span className="font-bold text-gray-900">InstaReply</span>
-        </div>
+        <Image src="/11za-logo.svg" alt="11za" width={80} height={32} priority />
       </div>
 
       {/* Nav */}
@@ -49,9 +44,10 @@ export default function Sidebar({ userEmail }: { userEmail: string }) {
               className={cn(
                 'flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium transition',
                 active
-                  ? 'bg-purple-50 text-purple-700'
+                  ? 'text-white'
                   : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900'
               )}
+              style={active ? { backgroundColor: '#09AF72' } : {}}
             >
               <item.icon className="w-4 h-4" />
               {item.label}

@@ -33,7 +33,7 @@ export default function EmojiPicker({ onSelect }: { onSelect: (emoji: string) =>
       <button
         type="button"
         onClick={() => setOpen(!open)}
-        className="w-9 h-9 flex items-center justify-center rounded-full hover:bg-gray-100 transition text-gray-500 hover:text-purple-600"
+        className="w-9 h-9 flex items-center justify-center rounded-full hover:bg-gray-100 transition text-gray-500 hover:text-green-600"
       >
         <Smile className="w-5 h-5" />
       </button>

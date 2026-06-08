@@ -115,7 +115,7 @@ export default async function DashboardPage() {
             </p>
           </div>
         </div>
-        <Link href="/dashboard/connect" className="text-sm font-medium text-purple-600 hover:underline">
+        <Link href="/dashboard/connect" className="text-sm font-medium hover:underline" style={{ color: '#09AF72' }}>
           {account ? 'Manage' : 'Connect now →'}
         </Link>
       </div>
@@ -125,7 +125,7 @@ export default async function DashboardPage() {
         {[
           { label: 'Total Received', value: totalIncoming ?? 0, sub: `+${todayReceived ?? 0} today`, icon: MessageCircle, color: 'bg-blue-500' },
           { label: 'Total Sent', value: totalSent ?? 0, sub: `+${todaySent ?? 0} today`, icon: Send, color: 'bg-green-500' },
-          { label: 'Unique Users', value: uniqueUsers, sub: `${returningUsers} returning`, icon: Users, color: 'bg-purple-500' },
+          { label: 'Unique Users', value: uniqueUsers, sub: `${returningUsers} returning`, icon: Users, color: 'bg-emerald-500' },
           { label: 'Peak Hour', value: peakHour, sub: 'last 7 days', icon: Clock, color: 'bg-orange-500' },
         ].map((stat) => (
           <div key={stat.label} className="bg-white rounded-xl border border-gray-200 p-5">
@@ -159,7 +159,7 @@ export default async function DashboardPage() {
               href={action.href}
               className="flex items-center gap-3 p-4 rounded-lg border border-gray-200 hover:bg-gray-50 transition"
             >
-              <action.icon className="w-5 h-5 text-purple-600" />
+              <action.icon className="w-5 h-5" style={{ color: '#09AF72' }} />
               <span className="text-sm font-medium text-gray-700">{action.label}</span>
             </Link>
           ))}
