@@ -9,6 +9,7 @@ export function getMetaOAuthUrl(state: string): string {
     scope: [
       'instagram_basic',
       'instagram_manage_messages',
+      'instagram_manage_comments',
       'pages_show_list',
       'business_management',
     ].join(','),
