@@ -84,7 +84,8 @@ export async function handleIncomingMessage(
 
   // Send the reply via Instagram API
   try {
-    await sendInstagramMessage(senderId, replyText, accessToken, resolvedIgId)
+    // Use page_id for the messages endpoint (Messenger Platform route for Instagram DMs)
+    await sendInstagramMessage(senderId, replyText, accessToken, account.page_id)
     status = 'sent'
   } catch (err) {
     console.error('[auto-reply] send failed:', err)

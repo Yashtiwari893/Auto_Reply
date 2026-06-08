@@ -92,6 +92,7 @@ export async function sendInstagramMessage(
       body: JSON.stringify({
         recipient: { id: recipientId },
         message: { text: messageText },
+        messaging_type: 'RESPONSE',
         access_token: pageAccessToken,
       }),
     })
