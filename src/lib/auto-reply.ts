@@ -24,12 +24,17 @@ export async function handleIncomingMessage(
   // entry.id can be either instagram_id or page_id depending on event type — check both
   const { data: account } = await supabase
     .from('instagram_accounts')
-    .select('user_id, access_token, page_id, instagram_id')
+    .select('user_id, access_token, page_id, instagram_id, auto_reply_enabled')
     .or(`instagram_id.eq.${igAccountId},page_id.eq.${igAccountId}`)
     .single()
 
   if (!account) {
     console.error('[auto-reply] No account found for igAccountId:', igAccountId)
+    return
+  }
+
+  if (account.auto_reply_enabled === false) {
+    console.log('[auto-reply] Disabled for this account — skipping')
     return
   }
 
@@ -40,11 +45,13 @@ export async function handleIncomingMessage(
   // Get sender display name
   const senderInfo = await getSenderInfo(senderId, accessToken)
 
-  // Save incoming message to DB
+  // Save incoming message to DB (with profile info)
   await supabase.from('incoming_messages').insert({
     user_id,
     sender_id: senderId,
     sender_name: senderInfo.name,
+    sender_username: senderInfo.username ?? null,
+    sender_profile_pic: senderInfo.profile_pic ?? null,
     message_text: messageText,
   })
 

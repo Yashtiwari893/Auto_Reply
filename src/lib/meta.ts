@@ -115,10 +115,10 @@ export async function sendInstagramMessage(
 export async function getSenderInfo(
   senderId: string,
   pageAccessToken: string
-): Promise<{ name: string }> {
+): Promise<{ name: string; username?: string; profile_pic?: string }> {
   try {
     const res = await fetch(
-      `${GRAPH_API_BASE}/${senderId}?fields=name&access_token=${pageAccessToken}`
+      `${GRAPH_API_BASE}/${senderId}?fields=name,username,profile_pic&access_token=${pageAccessToken}`
     )
     if (!res.ok) return { name: 'Unknown' }
     return res.json()

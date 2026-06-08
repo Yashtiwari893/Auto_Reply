@@ -3,13 +3,14 @@
 import Link from 'next/link'
 import { usePathname, useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
-import { LayoutDashboard, Zap, MessageCircle, LogOut } from 'lucide-react'
+import { LayoutDashboard, Zap, MessageCircle, LogOut, MessagesSquare } from 'lucide-react'
 import InstagramIcon from '@/components/InstagramIcon'
 import { cn } from '@/lib/utils'
 
 const navItems = [
   { href: '/dashboard', label: 'Overview', icon: LayoutDashboard, exact: true },
   { href: '/dashboard/connect', label: 'Instagram', icon: InstagramIcon },
+  { href: '/dashboard/chat', label: 'Chats', icon: MessagesSquare },
   { href: '/dashboard/auto-replies', label: 'Auto Replies', icon: Zap },
   { href: '/dashboard/logs', label: 'Message Logs', icon: MessageCircle },
 ]
