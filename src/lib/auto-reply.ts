@@ -39,31 +39,15 @@ export async function handleIncomingMessage(
   }
 
   const { user_id, access_token: encryptedToken, instagram_id: resolvedIgId } = account
-
-  // Check per-sender auto-reply setting (default: enabled)
-  const { data: senderSetting } = await supabase
-    .from('sender_settings')
-    .select('auto_reply_enabled')
-    .eq('user_id', user_id)
-    .eq('sender_id', senderId)
-    .single()
-
-  console.log('[auto-reply] sender_settings row:', senderSetting)
-  if (senderSetting?.auto_reply_enabled === false) {
-    console.log('[auto-reply] Per-sender auto-reply disabled for:', senderId)
-    return
-  }
-  console.log('[auto-reply] Processing message from', senderId, 'to account', resolvedIgId)
   const accessToken = decrypt(encryptedToken)
 
   // Get sender display name
   const senderInfo = await getSenderInfo(senderId, accessToken)
-  // Use sender ID suffix as fallback name when Meta API can't fetch profile
   const effectiveName = (senderInfo.name && senderInfo.name !== 'Unknown')
     ? senderInfo.name
     : `User ${senderId.slice(-6)}`
 
-  // Save incoming message to DB (with profile info)
+  // Always save incoming message — regardless of auto-reply setting
   await supabase.from('incoming_messages').insert({
     user_id,
     sender_id: senderId,
@@ -73,13 +57,28 @@ export async function handleIncomingMessage(
     message_text: messageText,
   })
 
-  // Save this message to conversation history
+  // Always save to conversation history so it appears in chat
   await supabase.from('conversation_history').insert({
     user_id,
     sender_id: senderId,
     role: 'user',
     content: messageText,
   })
+
+  // Check per-sender auto-reply setting AFTER saving — only block AI reply, not message storage
+  const { data: senderSetting } = await supabase
+    .from('sender_settings')
+    .select('auto_reply_enabled')
+    .eq('user_id', user_id)
+    .eq('sender_id', senderId)
+    .single()
+
+  if (senderSetting?.auto_reply_enabled === false) {
+    console.log('[auto-reply] Per-sender auto-reply disabled for:', senderId, '— message saved, no AI reply')
+    return
+  }
+
+  console.log('[auto-reply] Processing message from', senderId, 'to account', resolvedIgId)
 
   // Fetch last 20 messages for context (ordered oldest → newest)
   const { data: historyRows } = await supabase
@@ -90,10 +89,9 @@ export async function handleIncomingMessage(
     .order('created_at', { ascending: false })
     .limit(20)
 
-  // Reverse so oldest is first (correct order for AI context)
   const history: ChatMessage[] = (historyRows ?? [])
     .reverse()
-    .slice(0, -1) // exclude the message we just inserted (it's the current one)
+    .slice(0, -1)
     .map((r) => ({ role: r.role as 'user' | 'assistant', content: r.content }))
 
   // Generate AI reply
@@ -109,7 +107,6 @@ export async function handleIncomingMessage(
 
   // Send the reply via Instagram API
   try {
-    // Use page_id for the messages endpoint (Messenger Platform route for Instagram DMs)
     await sendInstagramMessage(senderId, replyText, accessToken, account.page_id)
     status = 'sent'
   } catch (err) {
@@ -124,7 +121,6 @@ export async function handleIncomingMessage(
     content: replyText,
   })
 
-  // Log sent message
   await supabase.from('sent_messages').insert({
     user_id,
     recipient_id: senderId,
