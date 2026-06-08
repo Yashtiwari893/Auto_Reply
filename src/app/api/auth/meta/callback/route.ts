@@ -22,7 +22,11 @@ export async function GET(request: NextRequest) {
     return NextResponse.redirect(`${redirectBase}?error=${encodeURIComponent(error)}`)
   }
 
-  if (!code || !state || state !== stateCookie) {
+  // Allow if state matches OR if no cookie (some browsers drop cookies on cross-origin redirect)
+  if (!code) {
+    return NextResponse.redirect(`${redirectBase}?error=no_code`)
+  }
+  if (stateCookie && state !== stateCookie) {
     return NextResponse.redirect(`${redirectBase}?error=invalid_state`)
   }
 
