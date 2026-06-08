@@ -19,6 +19,7 @@ export default async function MayraSettingsPage() {
     tone: 'casual',
     reply_length: 'short',
     custom_instructions: '',
+    comment_auto_reply_enabled: true,
   }
 
   return <MayraSettingsClient initial={initial} />

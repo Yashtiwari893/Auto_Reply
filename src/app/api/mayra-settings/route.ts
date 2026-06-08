@@ -21,6 +21,7 @@ export async function GET() {
     tone: 'casual',
     reply_length: 'short',
     custom_instructions: '',
+    comment_auto_reply_enabled: true,
   })
 }
 
@@ -30,7 +31,7 @@ export async function POST(request: NextRequest) {
   if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
   const body = await request.json()
-  const { bot_name, language, tone, reply_length, custom_instructions } = body
+  const { bot_name, language, tone, reply_length, custom_instructions, comment_auto_reply_enabled } = body
 
   const admin = createAdminClient()
   const { error } = await admin
@@ -42,6 +43,7 @@ export async function POST(request: NextRequest) {
       tone: tone || 'casual',
       reply_length: reply_length || 'short',
       custom_instructions: custom_instructions || null,
+      comment_auto_reply_enabled: comment_auto_reply_enabled !== false,
       updated_at: new Date().toISOString(),
     }, { onConflict: 'user_id' })
 

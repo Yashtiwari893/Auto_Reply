@@ -9,6 +9,7 @@ type Settings = {
   tone: string
   reply_length: string
   custom_instructions: string
+  comment_auto_reply_enabled: boolean
 }
 
 const TONES = [
@@ -35,11 +36,12 @@ export default function MayraSettingsClient({ initial }: { initial: Settings }) 
   const [settings, setSettings] = useState<Settings>({
     ...initial,
     custom_instructions: initial.custom_instructions ?? '',
+    comment_auto_reply_enabled: initial.comment_auto_reply_enabled !== false,
   })
   const [saving, setSaving] = useState(false)
   const [saved, setSaved] = useState(false)
 
-  function update(key: keyof Settings, value: string) {
+  function update(key: keyof Settings, value: string | boolean) {
     setSettings(prev => ({ ...prev, [key]: value }))
     setSaved(false)
   }
@@ -193,6 +195,22 @@ export default function MayraSettingsClient({ initial }: { initial: Settings }) 
               maxLength={500}
             />
             <p className="text-xs text-gray-400 mt-1">{settings.custom_instructions.length}/500</p>
+          </div>
+
+          {/* Comment Auto-Reply Toggle */}
+          <div className="bg-white rounded-xl border border-gray-100 shadow-sm p-5">
+            <div className="flex items-center justify-between">
+              <div>
+                <h2 className="font-semibold text-gray-900 text-sm">Comment Auto-Reply</h2>
+                <p className="text-xs text-gray-400 mt-0.5">Mayra will auto-reply to comments on your Instagram posts</p>
+              </div>
+              <button
+                onClick={() => update('comment_auto_reply_enabled', !settings.comment_auto_reply_enabled)}
+                className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors duration-200 ${settings.comment_auto_reply_enabled ? 'bg-green-500' : 'bg-gray-300'}`}
+              >
+                <span className={`inline-block h-4 w-4 transform rounded-full bg-white shadow transition-transform duration-200 ${settings.comment_auto_reply_enabled ? 'translate-x-6' : 'translate-x-1'}`} />
+              </button>
+            </div>
           </div>
 
           {/* Save */}

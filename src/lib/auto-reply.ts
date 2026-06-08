@@ -1,6 +1,6 @@
 import { createAdminClient } from '@/lib/supabase/admin'
 import { decrypt } from '@/lib/crypto'
-import { sendInstagramMessage, getSenderInfo } from '@/lib/meta'
+import { sendInstagramMessage, getSenderInfo, replyToComment } from '@/lib/meta'
 import { getMayraReply, type ChatMessage } from '@/lib/ai'
 
 // Deduplication: prevent double-processing same message
@@ -127,4 +127,63 @@ export async function handleIncomingMessage(
     message_text: replyText,
     status,
   })
+}
+
+export async function handleIncomingComment(
+  igAccountId: string,
+  commentId: string,
+  commentText: string,
+  commenterUsername: string
+): Promise<void> {
+  const supabase = createAdminClient()
+
+  const { data: account } = await supabase
+    .from('instagram_accounts')
+    .select('user_id, access_token, page_id, instagram_id')
+    .or(`instagram_id.eq.${igAccountId},page_id.eq.${igAccountId}`)
+    .single()
+
+  if (!account) {
+    console.error('[comment-reply] No account found for igAccountId:', igAccountId)
+    return
+  }
+
+  const { user_id, access_token: encryptedToken, instagram_id } = account
+
+  // Skip if it's the account owner commenting on their own post
+  if (commenterUsername && commenterUsername === instagram_id) return
+
+  // Check if comment auto-reply is enabled in settings
+  const { data: settings } = await supabase
+    .from('mayra_settings')
+    .select('comment_auto_reply_enabled')
+    .eq('user_id', user_id)
+    .single()
+
+  if (settings?.comment_auto_reply_enabled === false) {
+    console.log('[comment-reply] Comment auto-reply disabled — skipping')
+    return
+  }
+
+  const accessToken = decrypt(encryptedToken)
+
+  let replyText = ''
+  try {
+    replyText = await getMayraReply(
+      commentText,
+      [],
+      commenterUsername || 'friend',
+      user_id
+    )
+  } catch (err) {
+    console.error('[comment-reply] AI generation failed:', err)
+    replyText = 'Thanks for your comment! 🙌'
+  }
+
+  try {
+    await replyToComment(commentId, replyText, accessToken)
+    console.log('[comment-reply] Replied to comment', commentId)
+  } catch (err) {
+    console.error('[comment-reply] Failed to post reply:', err)
+  }
 }

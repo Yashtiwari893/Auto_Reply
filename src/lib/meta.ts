@@ -154,10 +154,10 @@ export type IgPost = {
 export type IgComment = {
   id: string
   text: string
-  username: string
+  username?: string
   timestamp: string
   replies?: {
-    data: { id: string; text: string; username: string; timestamp: string }[]
+    data: { id: string; text: string; username?: string; timestamp: string }[]
   }
 }
 
@@ -191,6 +191,22 @@ export async function getPostComments(
     return data.data ?? []
   } catch {
     return []
+  }
+}
+
+export async function replyToComment(
+  commentId: string,
+  replyText: string,
+  accessToken: string
+): Promise<void> {
+  const res = await fetch(`${GRAPH_API_BASE}/${commentId}/replies`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ message: replyText, access_token: accessToken }),
+  })
+  if (!res.ok) {
+    const err = await res.json()
+    throw new Error(err.error?.message ?? 'Failed to reply to comment')
   }
 }
 

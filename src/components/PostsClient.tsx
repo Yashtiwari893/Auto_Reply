@@ -201,11 +201,11 @@ export default function PostsClient({ posts, igUsername }: { posts: IgPost[]; ig
                       {/* Comment */}
                       <div className="flex gap-3">
                         <div className="w-8 h-8 rounded-full flex items-center justify-center text-white text-xs font-bold shrink-0" style={{ backgroundColor: '#09AF72' }}>
-                          {comment.username.charAt(0).toUpperCase()}
+                          {(comment.username ?? '?').charAt(0).toUpperCase()}
                         </div>
                         <div className="flex-1 min-w-0">
                           <div className="bg-gray-50 rounded-2xl rounded-tl-sm px-4 py-2.5">
-                            <p className="text-xs font-semibold text-gray-900 mb-0.5">@{comment.username}</p>
+                            <p className="text-xs font-semibold text-gray-900 mb-0.5">@{comment.username ?? 'unknown'}</p>
                             <p className="text-sm text-gray-800 leading-snug">{comment.text}</p>
                           </div>
                           <p className="text-xs text-gray-400 mt-1 ml-2">{formatTime(comment.timestamp)}</p>
@@ -216,7 +216,8 @@ export default function PostsClient({ posts, igUsername }: { posts: IgPost[]; ig
                       {comment.replies?.data && comment.replies.data.length > 0 && (
                         <div className="ml-11 space-y-2">
                           {comment.replies.data.map((reply) => {
-                            const isOwnReply = reply.username === igUsername
+                            const replyUser = reply.username ?? 'unknown'
+                            const isOwnReply = replyUser === igUsername
                             return (
                               <div key={reply.id} className="flex gap-2 items-start">
                                 <CornerDownRight className="w-3.5 h-3.5 text-gray-300 mt-2 shrink-0" />
@@ -226,7 +227,7 @@ export default function PostsClient({ posts, igUsername }: { posts: IgPost[]; ig
                                     style={isOwnReply ? { backgroundColor: '#e6f7f1' } : { backgroundColor: '#f3f4f6' }}
                                   >
                                     <p className="text-xs font-semibold mb-0.5" style={isOwnReply ? { color: '#09AF72' } : { color: '#374151' }}>
-                                      @{reply.username} {isOwnReply && <span className="font-normal text-gray-400">(you)</span>}
+                                      @{replyUser} {isOwnReply && <span className="font-normal text-gray-400">(you)</span>}
                                     </p>
                                     <p className="text-sm text-gray-800 leading-snug">{reply.text}</p>
                                   </div>

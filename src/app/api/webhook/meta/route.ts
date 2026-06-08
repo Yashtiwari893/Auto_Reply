@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse, after } from 'next/server'
-import { handleIncomingMessage } from '@/lib/auto-reply'
+import { handleIncomingMessage, handleIncomingComment } from '@/lib/auto-reply'
 import type { MetaWebhookEvent, MetaWebhookMessaging } from '@/types'
 
 // GET: webhook verification challenge from Meta
@@ -61,6 +61,24 @@ async function processWebhookAsync(body: MetaWebhookEvent): Promise<void> {
         console.log('[webhook] change field:', change.field, '| has messaging:', !!change.value?.messaging)
         if (change.field === 'messages' && change.value?.messaging) {
           messagingEvents.push(...(change.value.messaging as MetaWebhookMessaging[]))
+        }
+
+        // Handle comment events
+        if (change.field === 'comments' && change.value) {
+          const cv = change.value as {
+            id: string
+            text: string
+            from?: { id: string; username?: string }
+          }
+          if (cv.id && cv.text) {
+            console.log('[webhook] comment from', cv.from?.username ?? 'unknown', ':', cv.text)
+            await handleIncomingComment(
+              entry.id,
+              cv.id,
+              cv.text,
+              cv.from?.username ?? ''
+            )
+          }
         }
       }
     }
