@@ -21,16 +21,20 @@ export async function handleIncomingMessage(
 
   const supabase = createAdminClient()
 
-  // Find which user owns this Instagram account
+  // entry.id can be either instagram_id or page_id depending on event type — check both
   const { data: account } = await supabase
     .from('instagram_accounts')
-    .select('user_id, access_token, page_id')
-    .eq('instagram_id', igAccountId)
+    .select('user_id, access_token, page_id, instagram_id')
+    .or(`instagram_id.eq.${igAccountId},page_id.eq.${igAccountId}`)
     .single()
 
-  if (!account) return
+  if (!account) {
+    console.error('[auto-reply] No account found for igAccountId:', igAccountId)
+    return
+  }
 
-  const { user_id, access_token: encryptedToken } = account
+  const { user_id, access_token: encryptedToken, instagram_id: resolvedIgId } = account
+  console.log('[auto-reply] Processing message from', senderId, 'to account', resolvedIgId)
   const accessToken = decrypt(encryptedToken)
 
   // Get sender display name
@@ -80,7 +84,7 @@ export async function handleIncomingMessage(
 
   // Send the reply via Instagram API
   try {
-    await sendInstagramMessage(senderId, replyText, accessToken, igAccountId)
+    await sendInstagramMessage(senderId, replyText, accessToken, resolvedIgId)
     status = 'sent'
   } catch (err) {
     console.error('[auto-reply] send failed:', err)
