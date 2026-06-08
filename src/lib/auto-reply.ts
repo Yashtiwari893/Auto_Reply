@@ -39,6 +39,19 @@ export async function handleIncomingMessage(
   }
 
   const { user_id, access_token: encryptedToken, instagram_id: resolvedIgId } = account
+
+  // Check per-sender auto-reply setting (default: enabled)
+  const { data: senderSetting } = await supabase
+    .from('sender_settings')
+    .select('auto_reply_enabled')
+    .eq('user_id', user_id)
+    .eq('sender_id', senderId)
+    .single()
+
+  if (senderSetting?.auto_reply_enabled === false) {
+    console.log('[auto-reply] Per-sender auto-reply disabled for:', senderId)
+    return
+  }
   console.log('[auto-reply] Processing message from', senderId, 'to account', resolvedIgId)
   const accessToken = decrypt(encryptedToken)
 

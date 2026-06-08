@@ -72,6 +72,8 @@ export default function ChatClient({
   const [replyText, setReplyText] = useState('')
   const [sending, setSending] = useState(false)
   const [loadingMsgs, setLoadingMsgs] = useState(false)
+  const [senderAutoReply, setSenderAutoReply] = useState(true)
+  const [togglingReply, setTogglingReply] = useState(false)
   const messagesEndRef = useRef<HTMLDivElement>(null)
   const scrollContainerRef = useRef<HTMLDivElement>(null)
   const shouldAutoScrollRef = useRef(false) // only scroll on first open or new outgoing
@@ -171,12 +173,34 @@ export default function ChatClient({
     } catch { /* silent */ }
   }
 
+  async function loadSenderAutoReply(senderId: string) {
+    const res = await fetch(`/api/dashboard/sender-settings?senderId=${senderId}`)
+    if (res.ok) {
+      const data = await res.json()
+      setSenderAutoReply(data.enabled)
+    }
+  }
+
+  async function toggleSenderAutoReply() {
+    if (!selectedSender || togglingReply) return
+    setTogglingReply(true)
+    const newVal = !senderAutoReply
+    const res = await fetch('/api/dashboard/sender-settings', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ senderId: selectedSender, enabled: newVal }),
+    })
+    if (res.ok) setSenderAutoReply(newVal)
+    setTogglingReply(false)
+  }
+
   function selectSender(senderId: string) {
     setSelectedSender(senderId)
     setLoadingMsgs(true)
-    loadMessages(senderId, true) // scroll to bottom only on first open
+    loadMessages(senderId, true)
       .finally(() => setLoadingMsgs(false))
     fetchAndUpdateProfile(senderId)
+    loadSenderAutoReply(senderId)
   }
 
   // ── Auto-scroll only when explicitly requested ───────────────────────────
@@ -295,14 +319,32 @@ export default function ChatClient({
       <div className="flex-1 flex flex-col min-w-0">
         {selectedConv ? (
           <>
-            <div className="px-5 py-3 border-b border-gray-100 flex items-center gap-3 bg-white">
-              <Avatar name={selectedConv.name || selectedConv.senderId} profilePic={selectedConv.profilePic} size={10} />
-              <div>
-                <p className="font-semibold text-gray-900 text-sm">{displayName(selectedConv)}</p>
-                {selectedConv.username && selectedConv.name && selectedConv.name !== 'Unknown' && (
-                  <p className="text-xs text-gray-500">{selectedConv.name}</p>
-                )}
-                <p className="text-xs text-gray-400">ID: {selectedSender}</p>
+            <div className="px-5 py-3 border-b border-gray-100 flex items-center justify-between bg-white">
+              <div className="flex items-center gap-3">
+                <Avatar name={selectedConv.name || selectedConv.senderId} profilePic={selectedConv.profilePic} size={10} />
+                <div>
+                  <p className="font-semibold text-gray-900 text-sm">{displayName(selectedConv)}</p>
+                  {selectedConv.username && selectedConv.name && selectedConv.name !== 'Unknown' && (
+                    <p className="text-xs text-gray-500">{selectedConv.name}</p>
+                  )}
+                  <p className="text-xs text-gray-400">ID: {selectedSender}</p>
+                </div>
+              </div>
+
+              {/* Per-sender auto-reply toggle */}
+              <div className="flex items-center gap-2.5">
+                <span className={`text-xs font-medium ${senderAutoReply ? 'text-green-600' : 'text-gray-400'}`}>
+                  Auto-Reply {senderAutoReply ? 'ON' : 'OFF'}
+                </span>
+                <button
+                  onClick={toggleSenderAutoReply}
+                  disabled={togglingReply}
+                  className={`relative inline-flex h-5 w-9 items-center rounded-full transition-colors duration-200 disabled:opacity-60
+                    ${senderAutoReply ? 'bg-green-500' : 'bg-gray-300'}`}
+                >
+                  <span className={`inline-block h-3.5 w-3.5 transform rounded-full bg-white shadow transition-transform duration-200
+                    ${senderAutoReply ? 'translate-x-4' : 'translate-x-0.5'}`} />
+                </button>
               </div>
             </div>
 
