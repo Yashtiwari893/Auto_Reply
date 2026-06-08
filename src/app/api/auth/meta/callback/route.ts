@@ -22,24 +22,30 @@ export async function GET(request: NextRequest) {
     return NextResponse.redirect(`${redirectBase}?error=${encodeURIComponent(error)}`)
   }
 
-  // Allow if state matches OR if no cookie (some browsers drop cookies on cross-origin redirect)
   if (!code) {
     return NextResponse.redirect(`${redirectBase}?error=no_code`)
   }
+
   if (stateCookie && state !== stateCookie) {
     return NextResponse.redirect(`${redirectBase}?error=invalid_state`)
   }
 
   const supabase = await createClient()
-  const {
-    data: { user },
-  } = await supabase.auth.getUser()
+  const { data: { user } } = await supabase.auth.getUser()
 
   if (!user) {
     return NextResponse.redirect(`${process.env.NEXT_PUBLIC_APP_URL}/login`)
   }
 
   try {
+    const admin = createAdminClient()
+
+    // Ensure user exists in public.users (trigger may not have fired)
+    await admin.from('users').upsert(
+      { id: user.id, email: user.email ?? '' },
+      { onConflict: 'id' }
+    )
+
     // Exchange code for short-lived token, then get long-lived token
     const shortToken = await exchangeCodeForToken(code)
     const longToken = await getLongLivedToken(shortToken.access_token)
@@ -61,8 +67,7 @@ export async function GET(request: NextRequest) {
       ? new Date(Date.now() + longToken.expires_in * 1000).toISOString()
       : null
 
-    const admin = createAdminClient()
-    await admin.from('instagram_accounts').upsert(
+    const { error: upsertError } = await admin.from('instagram_accounts').upsert(
       {
         user_id: user.id,
         instagram_id: igAccountId,
@@ -73,6 +78,13 @@ export async function GET(request: NextRequest) {
       },
       { onConflict: 'user_id' }
     )
+
+    if (upsertError) {
+      console.error('[meta/callback] upsert error:', upsertError)
+      return NextResponse.redirect(
+        `${redirectBase}?error=${encodeURIComponent(upsertError.message)}`
+      )
+    }
 
     const response = NextResponse.redirect(`${redirectBase}?success=true`)
     response.cookies.delete('meta_oauth_state')

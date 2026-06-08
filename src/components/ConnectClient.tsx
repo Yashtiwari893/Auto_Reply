@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { CheckCircle, AlertCircle, Loader2, Unlink } from 'lucide-react'
 import InstagramIcon from '@/components/InstagramIcon'
@@ -20,6 +20,13 @@ export default function ConnectClient({
 
   const successParam = searchParams.get('success')
   const errorParam = searchParams.get('error')
+
+  // On success, force a hard refresh to reload server-side data
+  useEffect(() => {
+    if (successParam === 'true' && !initialAccount) {
+      router.refresh()
+    }
+  }, [successParam, initialAccount, router])
 
   async function handleDisconnect() {
     if (!confirm('Are you sure you want to disconnect your Instagram account?')) return
